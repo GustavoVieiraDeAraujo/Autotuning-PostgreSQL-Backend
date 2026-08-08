@@ -3,6 +3,7 @@ uvicorn[standard]
 python-multipart
 docker
 psutil
+psycopg[binary]   # le a fila/resultados do banco de controle da pipeline (DATABASE_URL)
 
 # Pacote "pipeline" irmão (sampler/, taskqueue/, runner/, benchmarks/,
 # monitoring/, utils/, cli/, ml/, specs/), instalado em modo editável.

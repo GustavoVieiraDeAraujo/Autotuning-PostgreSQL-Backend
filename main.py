@@ -3,11 +3,13 @@ API JSON para controle e monitoramento do pipeline de autotuning TPC-H + TPC-DS.
 
 Este serviço é o sucessor "sem HTML" de `web/app.py` do monorepo original:
 faz a mesma orquestração (spawna os scripts `cli/*.py` do repositório
-"pipeline" como subprocessos, lê `data/queue.json` e `data/raw/*.json`
-diretamente do sistema de arquivos, faz tail dos logs via SSE), mas não
-serve mais nenhuma página HTML — isso agora é responsabilidade do
-repositório "frontend", que consome estes endpoints via HTTP (com CORS
-habilitado).
+"pipeline" como subprocessos, faz tail dos logs via SSE), mas não serve
+mais nenhuma página HTML — isso agora é responsabilidade do repositório
+"frontend", que consome estes endpoints via HTTP (com CORS habilitado).
+
+Fila e resultados (antes `data/queue.json` e `data/raw/*.json`) agora vivem
+no Postgres de controle da pipeline (ver db/schema.sql no repo Pipeline) —
+esta API lê/escreve lá diretamente via `DATABASE_URL`, não mais arquivos.
 
 Uso
 ---
@@ -16,21 +18,24 @@ Uso
 Variáveis de ambiente
 ----------------------
     PIPELINE_ROOT   Caminho para a raiz do repositório "pipeline" (que contém
-                     data/, logs/, cli/, etc). Padrão: "../Autotuning-PostgreSQL-Pipeline"
+                     logs/, cli/, etc). Padrão: "../Autotuning-PostgreSQL-Pipeline"
                      resolvido em relação a este repositório.
+    DATABASE_URL    Connection string do Postgres de controle (fila + resultados).
+                     Padrão: mesmo default do repo Pipeline (ver utils/db.py) —
+                     assume o `db/docker-compose.yml` de lá rodando localmente.
 
 Endpoints
 ---------
     GET  /api/metrics                    → snapshot de métricas de hardware (poll a cada 1s)
     GET  /api/server-info                → informações estáticas do servidor
 
-    GET  /api/queue                      → estado atual da fila
-    POST /api/reset                      → remove fila, resultados, logs e containers
+    GET  /api/queue                      → estado atual da fila (Postgres)
+    POST /api/reset                      → limpa fila+resultados (Postgres), logs e containers
 
     GET  /api/images/status              → status das imagens Docker necessárias
 
-    GET  /api/results/list               → lista de arquivos de resultado
-    GET  /api/results/{tier}/{combo}/{f} → resultado completo de uma tarefa
+    GET  /api/results/list               → lista de tarefas com resultado disponível
+    GET  /api/results/{tier}/{combo}/{id} → resultado completo de uma tarefa (por task_id)
 
     GET  /api/prepare/status             → se o prepare de imagens está em execução
     POST /api/prepare/start              → constrói as imagens Docker base
@@ -52,9 +57,7 @@ Endpoints
 import argparse
 import asyncio
 import base64
-import json
 import os
-import shutil
 import signal
 import subprocess
 import sys
@@ -62,6 +65,8 @@ from pathlib import Path
 
 import docker
 import docker.errors
+import psycopg
+from psycopg.rows import dict_row
 
 import uvicorn
 from fastapi import FastAPI, HTTPException
@@ -87,6 +92,16 @@ from monitoring.collector import (  # noqa: E402
     _GPU_EDGE,
 )
 from benchmarks.image_builder import TIER_IMAGE_TAGS  # noqa: E402
+from utils.db import get_dsn  # noqa: E402 — mesmo DATABASE_URL/default da pipeline
+
+
+async def _db() -> psycopg.AsyncConnection:
+    """Abre uma conexão assíncrona nova com o Postgres de controle.
+
+    De curta duração (uma por request) — carga é baixa (poll de fila a cada
+    poucos segundos), não vale a pena manter um pool para isso aqui.
+    """
+    return await psycopg.AsyncConnection.connect(get_dsn(), row_factory=dict_row, autocommit=True)
 
 # ---------------------------------------------------------------------------
 # Paths — tudo derivado de PIPELINE_ROOT, nunca hardcoded para o monorepo.
@@ -97,8 +112,6 @@ _PIPELINE_ROOT = Path(
     os.environ.get("PIPELINE_ROOT", str(_HERE / ".." / "Autotuning-PostgreSQL-Pipeline"))
 ).resolve()
 
-_QUEUE_PATH = _PIPELINE_ROOT / "data" / "queue.json"
-_RESULTS_DIR = _PIPELINE_ROOT / "data" / "raw"
 _LOG_GENERATE = _PIPELINE_ROOT / "logs" / "generate.log"
 _LOG_PREPARE = _PIPELINE_ROOT / "logs" / "prepare.log"
 _LOG_RUNNER = _PIPELINE_ROOT / "logs" / "runner.log"
@@ -185,10 +198,16 @@ async def get_server_info():
 
 @app.get("/api/queue")
 async def get_queue():
-    """Retorna a lista completa de tasks da fila."""
-    if not _QUEUE_PATH.exists():
-        return JSONResponse([])
-    tasks = json.loads(_QUEUE_PATH.read_text(encoding="utf-8"))
+    """Retorna a lista completa de tasks da fila (Postgres)."""
+    async with await _db() as conn:
+        cur = await conn.execute(
+            """
+            SELECT id, combination, tier, config, repetition, status, retry_count,
+                   abandoned_reason, error, result_summary AS result
+            FROM tasks ORDER BY id
+            """
+        )
+        tasks = await cur.fetchall()
     if not _runner_running():
         for task in tasks:
             if task.get("status") == "running":
@@ -224,7 +243,7 @@ def _remove_benchmark_containers() -> list[str]:
 
 @app.post("/api/reset")
 async def reset_all():
-    """Remove a fila, resultados, logs e containers de benchmark."""
+    """Remove a fila, resultados (Postgres), logs e containers de benchmark."""
     if _generator_running():
         return JSONResponse({"error": "Gerador está em execução. Pare antes de resetar."}, status_code=409)
     if _prepare_running():
@@ -238,21 +257,11 @@ async def reset_all():
     containers_removed = _remove_benchmark_containers()
     removed.extend(containers_removed)
 
-    # Restaura permissão de escrita nos arquivos protegidos antes de apagar
-    if _RESULTS_DIR.exists():
-        for f in _RESULTS_DIR.rglob("*.json"):
-            try:
-                f.chmod(0o644)
-            except OSError:
-                pass
+    # Limpa fila e resultados — CASCADE também limpa task_results
+    async with await _db() as conn:
+        await conn.execute("TRUNCATE tasks RESTART IDENTITY CASCADE")
+    removed.append("tasks + task_results (Postgres)")
 
-    # Remove arquivos
-    if _QUEUE_PATH.exists():
-        _QUEUE_PATH.unlink()
-        removed.append("queue.json")
-    if _RESULTS_DIR.exists():
-        shutil.rmtree(_RESULTS_DIR)
-        removed.append("benchmark_results/")
     for log in (_LOG_GENERATE, _LOG_PREPARE, _LOG_RUNNER):
         if log.exists():
             log.unlink()
@@ -289,27 +298,47 @@ async def images_status():
 
 @app.get("/api/results/list")
 async def list_results():
-    """Lista todos os arquivos de resultado disponíveis."""
-    if not _RESULTS_DIR.exists():
-        return {"files": []}
-    files = []
-    for p in sorted(_RESULTS_DIR.rglob("task_*.json")):
-        files.append({
-            "path": str(p.relative_to(_PIPELINE_ROOT)),
-            "tier": p.parent.parent.name,
-            "combo": p.parent.name,
-            "name": p.name,
-        })
-    return {"files": files}
+    """Lista todas as tarefas com resultado disponível (Postgres)."""
+    async with await _db() as conn:
+        cur = await conn.execute(
+            """
+            SELECT t.id AS task_id, t.tier, t.combination
+            FROM tasks t JOIN task_results r ON r.task_id = t.id
+            ORDER BY t.id
+            """
+        )
+        rows = await cur.fetchall()
+    return {"files": [
+        {"task_id": r["task_id"], "tier": r["tier"], "combo": r["combination"]}
+        for r in rows
+    ]}
 
 
-@app.get("/api/results/{tier}/{combo}/{filename}")
-async def get_result(tier: str, combo: str, filename: str):
-    """Retorna o resultado completo de uma tarefa específica."""
-    path = _RESULTS_DIR / tier / combo / filename
-    if not path.exists():
-        raise HTTPException(status_code=404, detail="Arquivo não encontrado.")
-    return json.loads(path.read_text(encoding="utf-8"))
+@app.get("/api/results/{tier}/{combo}/{task_id}")
+async def get_result(tier: str, combo: str, task_id: int):
+    """Retorna o resultado completo de uma tarefa específica (Postgres).
+
+    Junta ``tasks`` (metadados/config/status) e ``task_results`` (conteúdo
+    do benchmark) num único objeto — mesmo formato "achatado" que o antigo
+    arquivo ``task_{id}.json`` tinha, para não exigir mudanças no frontend
+    além de como a URL é montada (por task_id, não mais por nome de arquivo).
+    """
+    async with await _db() as conn:
+        cur = await conn.execute(
+            """
+            SELECT t.id AS task_id, t.tier, t.combination, t.status,
+                   t.abandoned_reason, t.error, t.config AS pg_config,
+                   r.started_at, r.finished_at, r.duration_s,
+                   r.tpc_h, r.tpc_ds, r.hw_metrics
+            FROM tasks t JOIN task_results r ON r.task_id = t.id
+            WHERE t.id = %(task_id)s AND t.tier = %(tier)s AND t.combination = %(combo)s
+            """,
+            {"task_id": task_id, "tier": tier, "combo": combo},
+        )
+        row = await cur.fetchone()
+    if row is None:
+        raise HTTPException(status_code=404, detail="Tarefa não encontrada.")
+    return row
 
 
 # ---------------------------------------------------------------------------
@@ -460,7 +489,10 @@ async def runner_start():
         return JSONResponse({"error": "Runner já está em execução."}, status_code=409)
     if _generator_running():
         return JSONResponse({"error": "O gerador está em execução. Aguarde terminar."}, status_code=409)
-    if not _QUEUE_PATH.exists():
+    async with await _db() as conn:
+        cur = await conn.execute("SELECT NOT EXISTS (SELECT 1 FROM tasks) AS empty")
+        empty = (await cur.fetchone())["empty"]
+    if empty:
         return JSONResponse({"error": "Fila não encontrada. Gere as configurações primeiro."}, status_code=400)
     _LOG_RUNNER.parent.mkdir(parents=True, exist_ok=True)
     _err = open(_LOG_RUNNER, "ab")  # noqa: SIM115
