@@ -1,0 +1,17 @@
+fastapi
+uvicorn[standard]
+python-multipart
+docker
+psutil
+
+# Pacote "pipeline" irmão (sampler/, taskqueue/, runner/, benchmarks/,
+# monitoring/, utils/, cli/, ml/, specs/), instalado em modo editável.
+# Assume co-localização no mesmo filesystem, no mesmo nível deste repo:
+#
+#   Desenvolvimento/Projetos/
+#     Autotuning-PostgreSQL-Api/         (este repo)
+#     Autotuning-PostgreSQL-Pipeline/    (repo irmão, pip-installable)
+#
+# Se o pipeline estiver em outro caminho, ajuste esta linha e a env var
+# PIPELINE_ROOT (ver README.md) para apontarem para o mesmo lugar.
+-e ../Autotuning-PostgreSQL-Pipeline
