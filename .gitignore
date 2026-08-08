@@ -1,5 +1,10 @@
-.venv/
-__pycache__/
-*.pyc
-.pytest_cache/
-*.egg-info/
+target/
+*.class
+
+# IDEs
+.idea/
+*.iml
+.vscode/
+
+# OS
+.DS_Store
