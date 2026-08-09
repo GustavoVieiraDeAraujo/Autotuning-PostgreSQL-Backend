@@ -1,13 +1,30 @@
 # Autotuning PostgreSQL — Backend
 
+> **Status: TCC concluído, projeto arquivado.** Ver
+> [`Autotuning-PostgreSQL-Pipeline`](../Autotuning-PostgreSQL-Pipeline) para
+> o objetivo completo do projeto e os resultados finais do meta-modelo. O
+> autor está migrando para um novo tema de TCC; este repositório fica
+> mantido como referência funcional (compila e roda, verificado em
+> 2026-08-09).
+
+## Papel deste repositório
+
 Gateway HTTP (REST + SSE) que orquestra a pipeline de autotuning PostgreSQL
 (repositório irmão [`Autotuning-PostgreSQL-Pipeline`](../Autotuning-PostgreSQL-Pipeline),
-em Python) e serve dados de fila/resultados do Postgres de controle.
+em Python) e serve dados de fila/resultados do Postgres de controle — a API
+que o [`Autotuning-PostgreSQL-Frontend`](../Autotuning-PostgreSQL-Frontend)
+consome pra dar visibilidade/controle web sobre a coleta de benchmark
+(iniciar/parar geração de configs, preparo de imagens Docker, execução da
+fila, acompanhar logs em tempo real via SSE, ver resultados).
 
-Java 21 + Spring Boot 3. Sucessor do antigo backend em Python/FastAPI —
-mesmo contrato REST/SSE, mesma responsabilidade: orquestrar os scripts
-`cli/*.py` da Pipeline como subprocessos e ler/escrever a fila e os
-resultados no Postgres de controle (`db/schema.sql`, na Pipeline).
+Java 21 + Spring Boot 3. Reescrita completa (2026-08) do backend original em
+Python/FastAPI — mesmo contrato REST/SSE, mesma responsabilidade: orquestrar
+os scripts `cli/*.py` da Pipeline como subprocessos e ler/escrever a fila e
+os resultados no Postgres de controle (`db/schema.sql`, na Pipeline). A
+reescrita foi decisão de stack do autor (Java + Spring no back, React + TS
+no front), não motivada por limitação técnica da versão anterior — validada
+ponta a ponta contra dado real (Pipeline gerando configs → Postgres → este
+backend servindo → Frontend renderizando) antes de ser considerada completa.
 
 ## Rodando localmente
 
