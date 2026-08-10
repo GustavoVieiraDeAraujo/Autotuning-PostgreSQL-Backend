@@ -27,7 +27,7 @@ public class ResultsController {
      * Retorna o resultado completo de uma tarefa especifica (Postgres).
      *
      * <p>Junta {@code tasks} (metadados/config/status) e {@code task_results}
-     * (conteudo do benchmark) num unico objeto achatado — mesmo formato que
+     * (conteudo do benchmark) num unico objeto achatado: mesmo formato que
      * o antigo arquivo {@code task_{id}.json} tinha, so muda como a URL e
      * montada (por task_id, nao mais por nome de arquivo).
      */

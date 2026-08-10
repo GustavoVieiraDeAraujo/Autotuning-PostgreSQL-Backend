@@ -22,7 +22,7 @@ public class QueueController {
      * Retorna a lista completa de tasks da fila (Postgres).
      *
      * <p>Se o runner nao estiver rodando, qualquer task com status "running"
-     * e reescrita para "pending" SO NA RESPOSTA (nao persistido) — reconcilia
+     * e reescrita para "pending" SO NA RESPOSTA (nao persistido): reconcilia
      * linhas presas caso um runner tenha morrido sem deixar processo vivo
      * pra eventualmente reivindicar essa tarefa de volta.
      */

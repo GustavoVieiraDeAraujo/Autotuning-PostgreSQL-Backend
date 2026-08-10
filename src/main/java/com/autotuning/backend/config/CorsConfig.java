@@ -5,7 +5,7 @@ import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 /**
- * CORS liberado para qualquer origem — adequado apenas para desenvolvimento
+ * CORS liberado para qualquer origem: adequado apenas para desenvolvimento
  * local. O frontend roda como site separado (porta/origem diferente do
  * backend), diferente do antigo web/app.py monolitico onde frontend+backend
  * eram same-origin e CORS nao era necessario.

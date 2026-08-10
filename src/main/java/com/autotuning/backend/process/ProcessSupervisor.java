@@ -19,7 +19,7 @@ import org.springframework.stereotype.Service;
  * MVC atende requisicoes em multiplas threads (o FastAPI original era
  * single-threaded via asyncio), entao {@link #start} usa um lock por
  * "kind" para impedir que duas chamadas quase simultaneas ao mesmo recurso
- * (ex: dois cliques rapidos em "Gerar") disparem dois processos — uma raca
+ * (ex: dois cliques rapidos em "Gerar") disparem dois processos, uma raca
  * que nao existia no modelo single-thread original mas passa a existir aqui
  * se nao for tratada.
  */
@@ -67,7 +67,7 @@ public class ProcessSupervisor {
             logFile.getParent().toFile().mkdirs();
             ProcessBuilder pb = new ProcessBuilder(command)
                     .directory(paths.getRoot().toFile())
-                    // Redirect.DISCARD so vale pra saida (stdout/stderr) — pra
+                    // Redirect.DISCARD so vale pra saida (stdout/stderr): pra
                     // stdin, o equivalente de stdin=DEVNULL do Python e ler de
                     // /dev/null diretamente (EOF imediato).
                     .redirectInput(new java.io.File("/dev/null"))
@@ -88,7 +88,7 @@ public class ProcessSupervisor {
      *
      * <p>{@code Process.destroy()} do Java manda SIGTERM, que os scripts
      * cli/*.py da Pipeline nao tratam especificamente (so instalam handler
-     * pra SIGINT) — usar destroy() pularia o encerramento gracioso (tarefa
+     * pra SIGINT): usar destroy() pularia o encerramento gracioso (tarefa
      * atual volta pra pending) e dependeria so da reconciliacao de lease
      * da fila. Por isso aqui manda-se SIGINT explicitamente via `kill -INT`.
      *

@@ -1,11 +1,13 @@
 # Autotuning PostgreSQL: Backend
 
-> **Status: TCC concluído, projeto arquivado.** Ver
+> **Status: projeto interrompido, arquivado.** Foi pensado para ser o tema
+> do TCC do autor, mas não chegou a ser usado como tal: faltou concluir a
+> etapa de validação em instâncias de nuvem real, inviabilizada por uma
+> barreira financeira de custo de infraestrutura. Ver
 > [`Autotuning-PostgreSQL-Pipeline`](../Autotuning-PostgreSQL-Pipeline) para
-> o objetivo completo do projeto e os resultados finais do meta-modelo. O
-> autor está migrando para um novo tema de TCC; este repositório fica
-> mantido como referência funcional (compila e roda, verificado em
-> 2026-08-09).
+> o objetivo completo do projeto, os resultados obtidos e o motivo da
+> interrupção. Este repositório fica mantido como referência funcional
+> (compila e roda, verificado em 2026-08-09).
 
 ## Sumário
 
@@ -77,64 +79,7 @@ subprocessos Python da Pipeline), o **`HardwareInfoService`** (que lê
 métricas de hardware nativamente, sem Python) e a **camada JDBC**
 (`TaskDao`/`ResultsDao` via `JdbcTemplate`, contra o Postgres de controle).
 
-```mermaid
-flowchart TB
-    subgraph FE["Frontend (React + TS, repo irmão)"]
-        Browser["EventSource / fetch"]
-    end
-
-    subgraph BE["Backend, este repositório (Java 21 + Spring Boot 3)"]
-        direction TB
-        Controllers["Controllers REST\n(Queue, Results, Generator, Prepare,\nRunner, Images, Metrics, ServerInfo, Reset)"]
-        LSC["LogStreamController"]
-        PS["ProcessSupervisor"]
-        HW["HardwareInfoService"]
-        DS["DockerService (docker-java)"]
-        DAO["TaskDao / ResultsDao\n(JdbcTemplate)"]
-    end
-
-    subgraph FSOS["Filesystem + SO"]
-        LOGS["PIPELINE_ROOT/logs/*.log"]
-        PROC["/proc, /sys (hwmon, RAPL)"]
-    end
-
-    subgraph PIPE["Pipeline (Python), subprocessos"]
-        GEN["cli/generate.py"]
-        PREP["cli/prepare.py"]
-        RUN["cli/run.py"]
-    end
-
-    PG[("Postgres de controle\ntasks / task_results")]
-    DOCKER[("Docker Engine")]
-
-    Browser -->|"HTTP REST (poll)"| Controllers
-    Browser -->|"EventSource (SSE)"| LSC
-
-    Controllers -->|"start/stop/status"| PS
-    PS -->|"ProcessBuilder.start()"| GEN
-    PS -->|"ProcessBuilder.start()"| PREP
-    PS -->|"ProcessBuilder.start()"| RUN
-    PS -.->|"kill -INT pid"| GEN
-    PS -.->|"kill -INT pid"| PREP
-    PS -.->|"kill -INT pid"| RUN
-
-    GEN -->|"stderr >>"| LOGS
-    PREP -->|"stderr >>"| LOGS
-    RUN -->|"stderr >>"| LOGS
-    LSC -->|"poll 150ms + tail"| LOGS
-
-    GEN -->|"escreve fila"| PG
-    RUN -->|"consome fila, grava resultado"| PG
-    Controllers --> DAO
-    DAO --> PG
-
-    Controllers --> HW
-    HW -->|"leitura direta, read-only"| PROC
-
-    Controllers --> DS
-    DS -->|"HTTP sobre socket Unix"| DOCKER
-    RUN -.->|"cria containers de benchmark"| DOCKER
-```
+![Arquitetura do Backend: controllers, ProcessSupervisor, HardwareInfoService e camada JDBC](docs/architecture.svg)
 
 Pontos-chave do diagrama:
 
@@ -202,39 +147,7 @@ setam uma flag atômica (`AtomicBoolean stopped`) que o loop da virtual
 thread verifica a cada iteração. Sem isso, a thread de polling vazaria
 para sempre, continuando a ler o arquivo mesmo sem ninguém do outro lado.
 
-```mermaid
-sequenceDiagram
-    participant Py as cli/run.py (Pipeline)
-    participant FS as logs/runner.log
-    participant LSS as LogStreamService (virtual thread)
-    participant Emitter as SseEmitter
-    participant Browser as Frontend (EventSource + xterm.js)
-
-    Browser->>LSS: GET /stream/runner
-    LSS->>FS: readAllBytes() (conteúdo atual)
-    LSS->>Emitter: send(base64, TEXT_PLAIN)
-    Emitter-->>Browser: data: base64(conteúdo atual)
-    Browser->>Browser: atob() + xterm.write()
-
-    loop a cada 150ms
-        Py->>FS: append (stderr redirecionado)
-        LSS->>FS: size() comparado a pos
-        alt arquivo cresceu
-            LSS->>FS: seek(pos) + readFully(delta)
-            LSS->>Emitter: send(base64(delta), TEXT_PLAIN)
-            Emitter-->>Browser: data: base64(delta)
-        else arquivo truncado (nova execução)
-            LSS->>Emitter: event "reset"
-            Emitter-->>Browser: event: reset
-        else sem mudança
-            LSS->>Emitter: comment "keepalive"
-        end
-    end
-
-    Browser->>Browser: fecha aba / EventSource.close()
-    Emitter->>LSS: onCompletion() seta stopped=true
-    LSS->>LSS: loop verifica flag e encerra a virtual thread
-```
+![Sequencia do streaming de log via SSE, de ponta a ponta](docs/sse_streaming_sequence.svg)
 
 ### 2. Como o `ProcessSupervisor` sobe e derruba os processos Python
 

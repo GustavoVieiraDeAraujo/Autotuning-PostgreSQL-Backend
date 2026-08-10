@@ -7,7 +7,7 @@ import java.sql.SQLException;
 
 /**
  * Le uma coluna JSONB via JDBC e converte pra uma arvore de objetos Java
- * (Map/List/primitivos) em vez de deixar como texto/PGobject cru — assim,
+ * (Map/List/primitivos) em vez de deixar como texto/PGobject cru: assim,
  * quando o Spring serializa a resposta de volta pra JSON, o conteudo sai
  * como JSON aninhado de verdade, nao como uma string JSON escapada.
  */

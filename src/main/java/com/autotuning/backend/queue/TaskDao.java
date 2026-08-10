@@ -9,7 +9,7 @@ import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
 
 /**
- * Acesso a tabela {@code tasks} (ver db/schema.sql, repositorio Pipeline) —
+ * Acesso a tabela {@code tasks} (ver db/schema.sql, repositorio Pipeline):
  * mesmo SQL de mao que o backend Python (psycopg) ja usava, agora via
  * {@link JdbcTemplate}.
  */

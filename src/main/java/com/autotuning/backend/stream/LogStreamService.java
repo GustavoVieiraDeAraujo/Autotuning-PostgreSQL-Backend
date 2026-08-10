@@ -10,7 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 /**
- * Streaming ao vivo de um arquivo de log via SSE — porta de
+ * Streaming ao vivo de um arquivo de log via SSE: porta de
  * {@code _make_log_streamer} do backend Python original.
  *
  * <p>Ao conectar: le o conteudo atual do arquivo inteiro e manda como um
@@ -20,7 +20,7 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
  * manda so o delta; senao, manda um comentario de keepalive.
  *
  * <p>Cada conexao roda numa virtual thread propria (barata o suficiente pra
- * nao precisar de um pool dedicado) — o loop verifica uma flag atomica,
+ * nao precisar de um pool dedicado): o loop verifica uma flag atomica,
  * setada pelos callbacks de completion/timeout/error do emitter, pra
  * encerrar a thread quando o cliente desconecta (sem isso a thread vazaria
  * pra sempre rodando em background).
@@ -81,7 +81,7 @@ public class LogStreamService {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         } catch (Exception e) {
-            // Cliente desconectou ou I/O falhou — encerra silenciosamente,
+            // Cliente desconectou ou I/O falhou: encerra silenciosamente,
             // igual ao comportamento tolerante do gerador Python original.
             emitter.completeWithError(e);
         }

@@ -18,10 +18,10 @@ import org.springframework.stereotype.Service;
 
 /**
  * Porta em Java de {@code monitoring/collector.py} (repositorio Pipeline,
- * Python) — le os mesmos arquivos de {@code /proc} e {@code /sys} que o
+ * Python): le os mesmos arquivos de {@code /proc} e {@code /sys} que o
  * psutil/hwmon liam la, sem depender de shell-out pro Python. Motivo:
  * {@code /api/metrics} e o endpoint de maior frequencia do backend (poll de
- * 1s por navegador conectado) — spawnar um processo Python a cada segundo
+ * 1s por navegador conectado): spawnar um processo Python a cada segundo
  * seria uma dependencia viva desnecessaria e cara.
  *
  * <p>Descoberta de sensores roda uma unica vez no startup ({@link PostConstruct}),

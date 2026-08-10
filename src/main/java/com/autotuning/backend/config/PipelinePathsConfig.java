@@ -39,7 +39,7 @@ public class PipelinePathsConfig {
     }
 
     /**
-     * Resolve o interpretador Python a usar — prioriza a venv da Pipeline
+     * Resolve o interpretador Python a usar: prioriza a venv da Pipeline
      * ({@code PIPELINE_ROOT/.venv/bin/python}, criada por {@code make setup}),
      * caindo para {@code python3} do PATH se a venv nao existir. Equivalente
      * Java de {@code sys.executable} usado pelo backend Python original

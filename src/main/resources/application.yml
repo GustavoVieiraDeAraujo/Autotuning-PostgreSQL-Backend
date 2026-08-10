@@ -10,7 +10,7 @@ spring:
       enabled: true
   # Nao usamos spring.datasource.* diretamente porque DATABASE_URL vem no
   # formato libpq (postgresql://user:pass@host:port/db), nao no formato JDBC
-  # (jdbc:postgresql://...) que o Spring Boot autoconfigura sozinho — ver
+  # (jdbc:postgresql://...) que o Spring Boot autoconfigura sozinho: ver
   # config.DatabaseUrlParser + config.DataSourceConfig, que constroem o
   # DataSource manualmente a partir de app.database-url.
   autoconfigure:

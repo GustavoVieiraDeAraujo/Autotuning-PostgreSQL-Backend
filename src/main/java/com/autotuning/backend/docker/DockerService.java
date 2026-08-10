@@ -18,7 +18,7 @@ import java.util.Set;
 import org.springframework.stereotype.Service;
 
 /**
- * Wrapper fino sobre docker-java — equivalente Java de {@code docker.from_env()}
+ * Wrapper fino sobre docker-java: equivalente Java de {@code docker.from_env()}
  * do backend Python original (le DOCKER_HOST do ambiente, ou usa o socket
  * unix padrao se ausente).
  */
@@ -82,7 +82,7 @@ public class DockerService {
                 }
             }
         } catch (Exception ignored) {
-            // best-effort — Docker indisponivel nao deve quebrar /api/reset
+            // best-effort: Docker indisponivel nao deve quebrar /api/reset
         }
         return removed;
     }
