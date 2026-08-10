@@ -10,14 +10,18 @@
 ## Sumário
 
 - [Papel deste repositório](#papel-deste-repositório)
-- [Rodando localmente](#rodando-localmente)
-- [Variáveis de ambiente](#variáveis-de-ambiente)
+- [Participantes](#participantes)
+- [Tecnologias](#tecnologias)
 - [Arquitetura: visão geral](#arquitetura-visão-geral)
 - [Como funciona, em detalhe](#como-funciona-em-detalhe)
 - [Endpoints da API](#endpoints-da-api)
 - [Decisões de arquitetura](#decisões-de-arquitetura)
 - [Validação e resultados](#validação-e-resultados)
 - [Limitações](#limitações)
+- [Estrutura do Projeto](#estrutura-do-projeto)
+- [Requisitos](#requisitos)
+- [Variáveis de ambiente](#variáveis-de-ambiente)
+- [Como Executar](#como-executar)
 
 ## Papel deste repositório
 
@@ -45,24 +49,24 @@ treino do XGBoost/XGBRanker vive na Pipeline, em Python. O Backend nunca
 interpreta esse conteúdo: as colunas JSONB da fila/resultados atravessam
 como texto/JSON opaco (ver seção sobre `JsonbUtil` mais abaixo).
 
-## Rodando localmente
+## Participantes
 
-Pré-requisitos: Java 21, Maven, e o Postgres de controle da Pipeline
-rodando (`make db-up` no repositório Pipeline).
+| Nome | Matricula |
+|---|---|
+| Gustavo Vieira de Araujo | 211068440 |
 
-```bash
-mvn spring-boot:run
-```
+## Tecnologias
 
-Sobe em `http://localhost:8000` por padrão.
-
-## Variáveis de ambiente
-
-| Variável | Padrão | Descrição |
-|---|---|---|
-| `PIPELINE_ROOT` | `../Autotuning-PostgreSQL-Pipeline` | Raiz do repositório Pipeline (scripts `cli/*.py`, logs) |
-| `DATABASE_URL` | `postgresql://autotuning:autotuning@localhost:5433/autotuning_queue` | Connection string (formato libpq) do Postgres de controle |
-| `PORT` | `8000` | Porta HTTP |
+| Tecnologia | Uso |
+|---|---|
+| Java 21 | Linguagem principal, com threads virtuais nas conexões SSE |
+| Spring Boot 3.3 (Spring MVC) | Framework do gateway HTTP REST + SSE |
+| Spring JDBC (`JdbcTemplate`) | Acesso ao Postgres de controle sem ORM |
+| HikariCP | Pool de conexões com o Postgres de controle |
+| docker-java | Cliente Docker para subir/derrubar containers de benchmark |
+| Lombok | Redução de boilerplate nas classes Java |
+| Maven | Build e gerenciamento de dependências |
+| PostgreSQL | Banco de controle da fila e dos resultados |
 
 ## Arquitetura: visão geral
 
@@ -488,3 +492,51 @@ que existe uma rede de segurança de testes que não existe.
   que já existia (de forma equivalente) no backend Python original, então
   não é uma regressão introduzida pela reescrita, mas também não foi
   corrigido nela.
+
+## Estrutura do Projeto
+
+| Diretório / Arquivo | Descrição |
+|---|---|
+| `src/main/java/com/autotuning/backend/control/` | Controllers REST (Queue, Results, Generator, Prepare, Runner, Images, Metrics, ServerInfo, Reset) |
+| `src/main/java/com/autotuning/backend/stream/` | `LogStreamController` e `LogStreamService`, streaming de log via SSE |
+| `src/main/java/com/autotuning/backend/process/` | `ProcessSupervisor`, sobe e derruba os subprocessos Python da Pipeline |
+| `src/main/java/com/autotuning/backend/hw/` | `HardwareInfoService`, leitura nativa de métricas de hardware |
+| `src/main/java/com/autotuning/backend/docker/` | `DockerService`, integração com o Docker Engine via docker-java |
+| `src/main/java/com/autotuning/backend/queue/` | `TaskDao`, acesso à fila de tarefas no Postgres |
+| `src/main/java/com/autotuning/backend/results/` | `ResultsDao`, acesso aos resultados no Postgres |
+| `src/main/java/com/autotuning/backend/images/` | Verificação das imagens Docker necessárias |
+| `src/main/java/com/autotuning/backend/metrics/` | Modelos e endpoint de métricas de hardware |
+| `src/main/java/com/autotuning/backend/serverinfo/` | Informação estática do servidor (CPU, sensores) |
+| `src/main/java/com/autotuning/backend/reset/` | Endpoint de reset da fila e dos resultados |
+| `src/main/java/com/autotuning/backend/db/` | `DatabaseUrlParser` e configuração do `DataSource` |
+| `src/main/java/com/autotuning/backend/config/` | Configurações gerais (CORS, etc.) |
+| `src/main/resources/application.yml` | Configuração do Spring Boot |
+| `pom.xml` | Definição Maven do projeto e das dependências |
+
+## Requisitos
+
+| Dependência | Versão | Instalação |
+|---|---|---|
+| Java | 21 | Necessário no PATH para `mvn spring-boot:run` |
+| Maven | 3.x | Gerencia build e dependências do projeto |
+| Postgres de controle da Pipeline | rodando | `make db-up` no repositório Pipeline, antes de subir o Backend |
+
+## Variáveis de ambiente
+
+| Variável | Padrão | Descrição |
+|---|---|---|
+| `PIPELINE_ROOT` | `../Autotuning-PostgreSQL-Pipeline` | Raiz do repositório Pipeline (scripts `cli/*.py`, logs) |
+| `DATABASE_URL` | `postgresql://autotuning:autotuning@localhost:5433/autotuning_queue` | Connection string (formato libpq) do Postgres de controle |
+| `PORT` | `8000` | Porta HTTP |
+
+## Como Executar
+
+```bash
+mvn spring-boot:run
+```
+
+Sobe em `http://localhost:8000` por padrão.
+
+---
+
+> Documentacao gerada com auxilio de IA.
