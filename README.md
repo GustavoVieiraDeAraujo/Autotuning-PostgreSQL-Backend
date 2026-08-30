@@ -1,7 +1,7 @@
 # Autotuning PostgreSQL: Backend
 
-> **Status: projeto interrompido, arquivado.** Foi pensado para ser o tema
-> do TCC do autor, mas não chegou a ser usado como tal: faltou concluir a
+> **Status: projeto interrompido, arquivado.** Pensei nele para ser o tema
+> do meu TCC, mas não cheguei a usá-lo como tal: faltou concluir a
 > etapa de validação em instâncias de nuvem real, inviabilizada por uma
 > barreira financeira de custo de infraestrutura. Ver
 > [`Autotuning-PostgreSQL-Pipeline`](../Autotuning-PostgreSQL-Pipeline) para
@@ -39,7 +39,7 @@ Java 21 + Spring Boot 3. Reescrita completa (2026-08) do backend original em
 Python/FastAPI, com o mesmo contrato REST/SSE e a mesma responsabilidade: orquestrar
 os scripts `cli/*.py` da Pipeline como subprocessos e ler/escrever a fila e
 os resultados no Postgres de controle (`db/schema.sql`, na Pipeline). A
-reescrita foi decisão de stack do autor (Java + Spring no back, React + TS
+reescrita foi decisão minha de stack (Java + Spring no back, React + TS
 no front), não motivada por limitação técnica da versão anterior. Validada
 ponta a ponta contra dado real (Pipeline gerando configs → Postgres → este
 backend servindo → Frontend renderizando) antes de ser considerada completa.
