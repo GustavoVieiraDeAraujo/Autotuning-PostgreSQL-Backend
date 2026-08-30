@@ -1,14 +1,5 @@
 # Autotuning PostgreSQL: Backend
 
-> **Status: projeto interrompido, arquivado.** Pensei nele para ser o tema
-> do meu TCC, mas não cheguei a usá-lo como tal: faltou concluir a
-> etapa de validação em instâncias de nuvem real, inviabilizada por uma
-> barreira financeira de custo de infraestrutura. Ver
-> [`Autotuning-PostgreSQL-Pipeline`](../Autotuning-PostgreSQL-Pipeline) para
-> o objetivo completo do projeto, os resultados obtidos e o motivo da
-> interrupção. Este repositório fica mantido como referência funcional
-> (compila e roda, verificado em 2026-08-09).
-
 ## Sumário
 
 - [Papel deste repositório](#papel-deste-repositório)
@@ -365,8 +356,7 @@ garantir que nada mudou do ponto de vista de quem consome a API:
 Não há suíte de testes automatizados versionada neste repositório
 (`src/test/java` está vazio) e, portanto, não há números de cobertura ou
 relatório de execução para citar aqui. A validação descrita acima foi
-exploratória/manual, no mesmo espírito da nota de status no topo deste
-README ("compila e roda, verificado em 2026-08-09"). Quem for reaproveitar
+exploratória/manual, verificada em 09/08/2026. Quem for reaproveitar
 este código deve tratar essa lacuna como uma limitação prática, não fingir
 que existe uma rede de segurança de testes que não existe.
 
