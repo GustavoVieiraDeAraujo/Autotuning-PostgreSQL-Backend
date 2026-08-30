@@ -442,4 +442,4 @@ Sobe em `http://localhost:8000` por padrão.
 
 ---
 
-> Documentacao gerada com auxilio de IA.
+> Documentacao gerada com auxilio de IA. Ferramenta de IA usada no desenvolvimento deste projeto: [Claude Code](https://claude.com/claude-code) (Anthropic).
